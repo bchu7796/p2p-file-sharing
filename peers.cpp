@@ -1,76 +1,19 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <iostream>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sstream>
-#include <string>
-#include <vector>
 #include <fstream>
-#include <stdlib.h>     /* srand, rand */
-#include <time.h>       /* time */
-#include <strings.h>
-
-#include <thread>   
-#include <mutex>
-
-#define PORT 8081
-#define CHUNK_SIZE 1024
-
-/*
-	int calculate_chunk_number(uint32_t) – Input file length and get how many chunks are needed with this file length.
-	int register_request(uint16_t, std::vector<file_info>) – Request server to register shared files.
-	int file_list_request() – Request server to give a list of available files.
-	int location_request(std::string, std::vector<chunk>&, int &) – Request server to give a list of location where the file is at.
-	void split(const std::string &, std::vector<string>&, const char) – Split the given sting using a specific delimiter.
-	file_exist(std::string) – Check if a file exists.
-	int write_log(std::string, std::vector<chunk>) – Write a log file for recording the status.
-	int read_log(std::string, std::vector<chunk>, int) – Read a log file to resume the status of previous section.
-	std::vector<int> select_chunk(std::vector<chunk>) – Choose which chunk to download first.
-	int select_peer(int) – Choose which peer to download from.
-	int download_file(std::string, int, struct chunk) – Download a chunk of a file from a peer.
-	int combine_file(std::string, int ) – Combine all the chunks downloaded.
-	int register_chunk(std::string, int) – Register possessing a chunk.
-	int download(std::string) – Download a file.
-	long get_file_size(std::string) – Get the size of a file.
-	int parse_command(std::string) – Parse a command entered by users.
-	int user_interface() – User interface.
-	void handle_request(int, std::string, int) – Handle download request from other peers.
-*/
+#include "peers.hpp"
 
 std::mutex mtx;
-
 struct sockaddr_in server_address;
 
-struct file_info{
-    std::string file_name;
-    uint32_t file_length;
-};
-
-struct peer{
-    in_addr address;
-    uint16_t port;
-};
-
-struct chunk{
-    uint32_t index;
-    bool is_possessed;
-    std::vector<peer> peers;
-};
-
-int calculate_chunk_number(uint32_t file_length){
-    int chunk_size = file_length / CHUNK_SIZE;
-    if((file_length * chunk_size) < file_length){
-        chunk_size += 1;
+int client::calculate_chunk_number(uint32_t file_length){
+    int chunk_number = file_length / CHUNK_SIZE;
+    //round up
+    if((CHUNK_SIZE * chunk_number) < file_length){
+        chunk_number += 1;
     }
-
-    return chunk_size;
+    return chunk_number;
 }
 
-int register_request(uint16_t number_of_file, std::vector<file_info> file_infos){
+int client::register_request(uint16_t number_of_file, std::vector<file_info> file_infos){
     /*
     send:
         request type
@@ -81,7 +24,7 @@ int register_request(uint16_t number_of_file, std::vector<file_info> file_infos)
     receive:
         OK
     */
-   int peer_fd;
+    int peer_fd;
     char receiveMessage[100] = {};
     uint32_t file_length = 0;
     std::string file_name;
@@ -118,7 +61,7 @@ int register_request(uint16_t number_of_file, std::vector<file_info> file_infos)
     return 0;
 }
 
-int file_list_request(){
+int client::file_list_request(){
     /*
     send:
         request type
@@ -161,7 +104,7 @@ int file_list_request(){
     return 0;
 }
 
-int location_request(std::string file_name, std::vector<chunk>& chunks, int & file_size){
+int client::location_request(std::string file_name, std::vector<chunk>& chunks, int & file_size){
     /*
     send:
         request type
@@ -242,7 +185,7 @@ int location_request(std::string file_name, std::vector<chunk>& chunks, int & fi
     return 0;
 }
 
-void split(const std::string& s, std::vector<std::string>& parameters, const char delim = ' ') {
+void client::split(const std::string& s, std::vector<std::string>& parameters, const char delim = ' ') {
     parameters.clear();
     std::istringstream iss(s);
     std::string temp;
@@ -253,12 +196,12 @@ void split(const std::string& s, std::vector<std::string>& parameters, const cha
     return;
 }
 
-bool file_exist(std::string file_name){
+bool client::file_exist(std::string file_name){
     struct stat buffer;   
     return (stat (file_name.c_str(), &buffer) == 0); 
 }
 
-int write_log(std::string file_name, std::vector<chunk> chunks){
+int client::write_log(std::string file_name, std::vector<chunk> chunks){
     std::ofstream log;
     log.open((file_name + ".log").c_str());
     for(int i = 0; i < chunks.size(); i++){
@@ -270,7 +213,7 @@ int write_log(std::string file_name, std::vector<chunk> chunks){
     return 0;
 }
 
-int read_log(std::string file_name, std::vector<chunk>& chunks, int file_length){
+int client::read_log(std::string file_name, std::vector<chunk>& chunks, int file_length){
     std::ifstream log;
     std::ofstream download_file;
     char buffer[10];
@@ -303,7 +246,7 @@ int read_log(std::string file_name, std::vector<chunk>& chunks, int file_length)
     return 0;
 }
 
-std::vector<int> select_chunk(std::vector<chunk> chunks){
+std::vector<int> client::select_chunk(std::vector<chunk> chunks){
     std::vector<int> min;
     int min_number = INT_MAX;
     int min_index = 0;
@@ -326,7 +269,7 @@ std::vector<int> select_chunk(std::vector<chunk> chunks){
     return min;
 }
 
-int download_file(std::string file_name, int index, struct chunk chunk_instance){
+int client::download_file(std::string file_name, int index, struct chunk chunk_instance){
     int sock_fd;
     char buffer[1024];
     struct sockaddr_in peer_address;
@@ -381,7 +324,7 @@ int download_file(std::string file_name, int index, struct chunk chunk_instance)
     return 0;
 }
 
-int combine_file(std::string file_name, int chunk_number){
+int client::combine_file(std::string file_name, int chunk_number){
     std::ifstream read;
     std::ofstream write(file_name);
     std::string temp_file_name;
@@ -404,7 +347,7 @@ int combine_file(std::string file_name, int chunk_number){
     return 0;
 }
 
-int register_chunk(std::string file_name, int index){
+int client::register_chunk(std::string file_name, int index){
     int peer_fd;
     std::string file = file_name;
     int chunk_index = index;
@@ -437,7 +380,8 @@ int register_chunk(std::string file_name, int index){
     return 0;
 }
 
-int download(std::string file_name){
+int client::download(std::string file_name){
+    client myclient;
     std::vector<chunk> chunks;
     std::vector<int> indexes;
     int file_length;
@@ -451,7 +395,7 @@ int download(std::string file_name){
     while(!indexes.empty()){
         for(int i=0; i < indexes.size(); i++){
             //download_file(file_name, indexes[i], chunks[indexes[i]]);
-            std::thread download_thread(download_file, file_name, indexes[i], chunks[indexes[i]]);
+            std::thread download_thread(&client::download_file, myclient,file_name, indexes[i], chunks[indexes[i]]);
             download_thread.detach();
             write_log(file_name, chunks);
             chunks[indexes[i]].is_possessed = true;
@@ -472,13 +416,13 @@ int download(std::string file_name){
     return 0;
 }
 
-long get_file_size(std::string filename){
+long client::get_file_size(std::string filename){
     struct stat stat_buf;
     int rc = stat(filename.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
 }
 
-int parse_command(std::string command){
+int client::parse_command(std::string command){
     std::vector<std::string> parameters;
     std::vector<file_info> file_infos;
 
@@ -508,7 +452,7 @@ int parse_command(std::string command){
     return 0;
 }
 
-void user_interface(){
+void client::user_interface(){
     char buffer[1024];
     while(1){
         std::string command;
@@ -520,7 +464,7 @@ void user_interface(){
     return;
 }
 
-void handle_request(int process_fd, std::string file_name, int chunk_index){
+void client::handle_request(int process_fd, std::string file_name, int chunk_index){
     char buffer[CHUNK_SIZE];
     std::ifstream upload_file;
     int chunk_size = CHUNK_SIZE;
@@ -534,21 +478,22 @@ void handle_request(int process_fd, std::string file_name, int chunk_index){
     close(process_fd);
 }
 
-int main(void){
+int client::execute(void){
+    client myclient;
     int process_fd;
     int server_fd;
     struct sockaddr_in client_address, peer_address;
     /* initialize random seed: */
     srand (time(NULL));
 
-    //initailize address structure
+    //initialize server
     bzero(&server_address, sizeof(server_address));
     server_address.sin_family = PF_INET; 
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); 
-    server_address.sin_port = htons(8080); 
+    server_address.sin_addr.s_addr = inet_addr(SERVER_IP); 
+    server_address.sin_port = htons(SERVER_PORT); 
 
     //create thread for user interface
-    std::thread user_thread(user_interface);
+    std::thread user_thread(&client::user_interface, myclient);
     user_thread.detach();
 
     //create socket
@@ -590,10 +535,9 @@ int main(void){
             recv(process_fd, &chunk_index, sizeof(chunk_index), 0);
             std::cout<<"upload file:" << file_name <<"," <<chunk_index<<std::endl;
             //use multi-thread to handle requests
-            std::thread tid(handle_request, process_fd, file_name, chunk_index);
+            std::thread tid(&client::handle_request, myclient, process_fd, file_name, chunk_index);
             tid.detach();
         }
     }
-
     return 0;
 }

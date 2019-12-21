@@ -1,9 +1,26 @@
-all:server peer
+CXX = g++
+CXXFLAGS = -std=c++11
 
-server:
-	g++ -pthread -std=c++11 -o server server.cpp
-peer:
-	g++ -pthread -std=c++11 -o peer peers.cpp
+all:server client
+
+server: server_main.o server.o
+	$(CXX) $(CXXFLAGS) server_main.o server.o -o server
+
+server_main.o: server_main.cpp
+	$(CXX) $(CXXFLAGS) -c server_main.cpp
+
+server.o: server.cpp
+	$(CXX) $(CXXFLAGS) -c server.cpp
+
+client: client.o peers.o
+	$(CXX) $(CXXFLAGS) client.o peers.o -o client
+
+client.o: 
+	$(CXX) $(CXXFLAGS) -c client.cpp
+
+peers.o: 
+	$(CXX) $(CXXFLAGS) -c peers.cpp
 
 clean:
-	rm server peer
+	rm -f core *.o
+	rm server client
