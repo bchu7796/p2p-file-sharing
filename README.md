@@ -15,17 +15,32 @@ The system consists of several clients (peers) and a central server. A peer can 
 | File Chunk Request: Asks the peer to return the file chunk. Reads in a file name, chunk indicator.  | File Chunk Reply: A stream of bytes representing the requested chunk. |
 
 ## Download and Compile
-``` git clone https://github.com/bchu7796/P2P_File_Sharing.git```
-
-``` cd P2P_File_Sharing.git```
-
-```make```
+``` 
+git clone https://github.com/bchu7796/P2P_File_Sharing.git
+cd P2P_File_Sharing.git
+make
+```
 
 ## Execution
+Server:
+``` 
+./server 
+```
+Client:
+``` 
+# To start the client
+./peer 
 
-``` ./server ```
+# Get list of files that can be downloaded
+show
 
-``` ./peer ```
+# Share files
+share filenums file1, file2, ...
+
+# Download file
+download filename
+
+```
 
 ## Reference
 Penn State 2019 Fall - CSE 513 LAB1

@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <iostream>
+#include <climits>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sstream>
